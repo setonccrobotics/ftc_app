@@ -8,13 +8,11 @@ import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.TouchSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-@TeleOp(name = "Johnny5", group = "SCC")
-public class Johnny5 extends LinearOpMode
+@TeleOp(name = "Johnny5Forklift", group = "SCC")
+public class Johnny5Forklift extends LinearOpMode
 {
     private DcMotor liftMotor;
     private boolean mastLowerBreakApplied;
-
-    private Servo gripServo;
 
     private DigitalChannel upperLiftLimit;
     private DigitalChannel lowerLiftLimit;
@@ -24,16 +22,7 @@ public class Johnny5 extends LinearOpMode
     private DcMotor leftRearMotor;
     private DcMotor rightRearMotor;
 
-    long lastGripTime = 0;
-    long currentTime = 0;
-    long gripDebounceTimeMS = 600;
     double slowDriveFactor = 1.0;
-
-    private TouchSensor tapeHomeSensor;
-    private Servo tapePositionServo;
-    private DcMotor tapeExtendMotor;
-    long lastTapeRotateTime = 0;
-    long tapeRotateDebounceTimeMS = 200;
 
     enum LiftState
     {
@@ -45,8 +34,6 @@ public class Johnny5 extends LinearOpMode
     public void runOpMode() throws InterruptedException
     {
         liftMotor = hardwareMap.dcMotor.get("liftMotor");
-
-        gripServo = hardwareMap.servo.get("gripServo");
 
         upperLiftLimit = hardwareMap.get(DigitalChannel.class, "upperLiftLimit");
         upperLiftLimit.setMode(DigitalChannel.Mode.INPUT);
@@ -61,18 +48,6 @@ public class Johnny5 extends LinearOpMode
         rightRearMotor = hardwareMap.dcMotor.get("rightRearMotor");
 
         mastLowerBreakApplied = true;
-
-        lastGripTime = System.currentTimeMillis();
-        currentTime = System.currentTimeMillis();
-
-        tapeHomeSensor = hardwareMap.touchSensor.get("tapeHomeSensor");
-        tapePositionServo = hardwareMap.servo.get("tapePositionServo");
-        tapeExtendMotor = hardwareMap.dcMotor.get("tapeExtendMotor");
-        lastTapeRotateTime = System.currentTimeMillis();
-
-        // Zero the robot
-        tapePositionServo.setPosition(0.15);
-        tapeRetractToHome();
 
         waitForStart();
 
@@ -118,7 +93,7 @@ public class Johnny5 extends LinearOpMode
                 motorBR = (-gamepad1.right_stick_x) / 2;
                 motorBL = (-gamepad1.right_stick_x) / 2;
             }
-            if (gamepad1.a) {
+            if (gamepad1.b) {
                 slowDriveFactor = 0.3;
             } else if (gamepad1.x) {
                 slowDriveFactor = 0.6;
@@ -131,78 +106,19 @@ public class Johnny5 extends LinearOpMode
             rightRearMotor.setPower(motorBR * slowDriveFactor);
 
             // Is the user requesting that the mast is lowered and we are not at the limit?
-            if (-gamepad2.left_stick_y * threshold < 0 && !lowerLiftLimitState) {
+            if ((gamepad1.a || gamepad1.left_bumper) && !lowerLiftLimitState) {
                 // Yes, lower the mast
-                liftMotor.setPower(-gamepad2.left_stick_y);
-            } else if (-gamepad2.left_stick_y * threshold > 0 && !upperLiftLimitState) {
+                liftMotor.setPower(1.0);
+            } else if ((gamepad1.y || gamepad1.right_bumper) && !upperLiftLimitState) {
                 // Raise the mast
-                liftMotor.setPower(-gamepad2.left_stick_y);
+                liftMotor.setPower(-1.0);
             } else {
                 liftMotor.setPower(0);
             }
 
-            // Check to see if we need to move the grip servo
-            currentTime = System.currentTimeMillis();
-            if (lastGripTime + gripDebounceTimeMS <= currentTime)
-            {
-                if (gamepad2.a && gripServo.getPosition() == 0.0) {
-                    // move to 0 degrees.
-                    gripServo.setPosition(0.5);
-                    lastGripTime = System.currentTimeMillis();
-                } else if (gamepad2.a && gripServo.getPosition() == 0.5) {
-                    // move to 90 degrees.
-                    gripServo.setPosition(0);
-                    lastGripTime = System.currentTimeMillis();
-                }
-            }
-            telemetry.addData("Servo Position", gripServo.getPosition());
-            telemetry.addData("Lift Gamepad Input", gamepad2.left_stick_y);
-
-            // Extend tape?
-            if (gamepad2.y) {
-                tapeExtendMotor.setPower(-1);
-            } else if (gamepad2.b && !tapeHomeSensor.isPressed()) {
-                tapeExtendMotor.setPower(1);
-            } else {
-                tapeExtendMotor.setPower(0);
-            }
-
-            // Check to see if we need to move the tape servo
-            currentTime = System.currentTimeMillis();
-            if (lastTapeRotateTime + tapeRotateDebounceTimeMS <= currentTime)
-            {
-                // Is the user requesting that tape be rotated?
-                if (-gamepad2.right_stick_x * threshold < 0) {
-                    // Yes, rotate the tape measure
-                    tapePositionServo.setPosition(tapePositionServo.getPosition() + 0.1);
-                } else if (-gamepad2.right_stick_x * threshold > 0) {
-                    // Rotate the tape measure
-                    tapePositionServo.setPosition(tapePositionServo.getPosition() - 0.1);
-                }
-                lastTapeRotateTime = System.currentTimeMillis();
-            }
-
-            telemetry.addData("currentTime MS", currentTime);
-
-            //telemetry.addData("Status", "Version 0.1");
             telemetry.update();
 
             idle();
         }
-    }
-
-    private void tapeRetractToHome() {
-        ElapsedTime retractTime = new ElapsedTime();
-        retractTime.reset();
-        // Retract tape measure to home
-        tapeExtendMotor.setPower(1);
-        while (!isStopRequested() && !tapeHomeSensor.isPressed() && retractTime.milliseconds() < 3000) {
-            telemetry.addData("tapeHomeSensor.isPressed()", tapeHomeSensor.isPressed());
-            telemetry.update();
-            idle();
-        }
-        tapeExtendMotor.setPower(-0.3);
-        sleep(5);
-        tapeExtendMotor.setPower(0);
     }
 }

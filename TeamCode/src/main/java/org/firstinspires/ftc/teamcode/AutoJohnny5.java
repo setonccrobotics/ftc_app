@@ -475,13 +475,13 @@ public class AutoJohnny5 extends LinearOpMode
 
         // Extend the tape
         tapePositionServo.setPosition(0.15);
-        tapeExtendMotor.setPower(-1);
+        //tapeExtendMotor.setPower(-1);
 
         // Drive backwards with platform
         driveBackwardsInches(50, 1);
 
         // Move forward to put some space between the robot and platform in the corner
-        driveForwardInches(6, 0.8);
+        driveForwardInches(4, 0.8);
 
         // Raise the mast/skystone up
         liftMotor.setPower(1);
@@ -490,7 +490,7 @@ public class AutoJohnny5 extends LinearOpMode
 
         // Drive backwards away from the platform
         driveBackwardsInches(6, 1);
-        tapeExtendMotor.setPower(0);
+        //tapeExtendMotor.setPower(0);
     }
 
     public boolean getTeam()
